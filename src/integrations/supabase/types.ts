@@ -14,7 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      flipbooks: {
+        Row: {
+          background_color: string | null
+          background_image_path: string | null
+          created_at: string
+          id: string
+          logo_image_path: string | null
+          pdf_storage_path: string | null
+          status: string
+          thumbnail_path: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          view_count: number | null
+        }
+        Insert: {
+          background_color?: string | null
+          background_image_path?: string | null
+          created_at?: string
+          id?: string
+          logo_image_path?: string | null
+          pdf_storage_path?: string | null
+          status?: string
+          thumbnail_path?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          view_count?: number | null
+        }
+        Update: {
+          background_color?: string | null
+          background_image_path?: string | null
+          created_at?: string
+          id?: string
+          logo_image_path?: string | null
+          pdf_storage_path?: string | null
+          status?: string
+          thumbnail_path?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          view_count?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
