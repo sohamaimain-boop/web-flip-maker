@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-import { Loader2 } from "lucide-react";
+import HTMLFlipBook from "react-pageflip";
+import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Configure PDF.js worker with a more reliable CDN
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
@@ -10,10 +12,39 @@ interface FlipbookViewerProps {
   backgroundColor?: string;
 }
 
+const PageCover = ({ children, pos }: { children: React.ReactNode; pos: string }) => (
+  <div className={`page page-cover page-cover-${pos}`} data-density="hard">
+    <div className="page-content">
+      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
+        {children}
+      </div>
+    </div>
+  </div>
+);
+
+const Page = ({ image, pageNumber }: { image: string; pageNumber: number }) => (
+  <div className="page">
+    <div className="page-content">
+      <div className="w-full h-full bg-white flex items-center justify-center p-4">
+        <img 
+          src={image} 
+          alt={`Page ${pageNumber}`} 
+          className="max-w-full max-h-full object-contain"
+        />
+      </div>
+      <div className="page-footer text-xs text-muted-foreground text-center py-2">
+        {pageNumber}
+      </div>
+    </div>
+  </div>
+);
+
 export const FlipbookViewer = ({ pdfUrl, backgroundColor = "#FFFFFF" }: FlipbookViewerProps) => {
   const [loading, setLoading] = useState(true);
   const [pages, setPages] = useState<string[]>([]);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const bookRef = useRef<any>(null);
 
   useEffect(() => {
     loadPdf();
@@ -45,10 +76,23 @@ export const FlipbookViewer = ({ pdfUrl, backgroundColor = "#FFFFFF" }: Flipbook
       }
 
       setPages(pageImages);
+      setTotalPages(pageImages.length);
       setLoading(false);
     } catch (error) {
       console.error("Error loading PDF:", error);
       setLoading(false);
+    }
+  };
+
+  const nextPage = () => {
+    if (bookRef.current) {
+      bookRef.current.pageFlip().flipNext();
+    }
+  };
+
+  const prevPage = () => {
+    if (bookRef.current) {
+      bookRef.current.pageFlip().flipPrev();
     }
   };
 
@@ -64,17 +108,71 @@ export const FlipbookViewer = ({ pdfUrl, backgroundColor = "#FFFFFF" }: Flipbook
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="flex flex-col items-center gap-4 p-8 rounded-lg"
-      style={{ backgroundColor }}
-    >
-      <div className="max-w-4xl w-full">
-        {pages.map((page, index) => (
-          <div key={index} className="mb-8 shadow-2xl rounded-lg overflow-hidden">
-            <img src={page} alt={`Page ${index + 1}`} className="w-full h-auto" />
-          </div>
-        ))}
+    <div className="flex flex-col items-center gap-6 p-8" style={{ backgroundColor }}>
+      <div className="relative">
+        <HTMLFlipBook
+          ref={bookRef}
+          width={550}
+          height={733}
+          size="stretch"
+          minWidth={315}
+          maxWidth={1000}
+          minHeight={400}
+          maxHeight={1533}
+          maxShadowOpacity={0.5}
+          showCover={true}
+          mobileScrollSupport={true}
+          onFlip={(e: any) => setCurrentPage(e.data)}
+          className="shadow-2xl"
+          style={{}}
+          startPage={0}
+          drawShadow={true}
+          flippingTime={1000}
+          usePortrait={true}
+          startZIndex={0}
+          autoSize={true}
+          clickEventForward={true}
+          useMouseEvents={true}
+          swipeDistance={30}
+          showPageCorners={true}
+          disableFlipByClick={false}
+        >
+          <PageCover pos="top">
+            <h2 className="text-4xl font-bold text-primary">FlipBook</h2>
+          </PageCover>
+          
+          {pages.map((page, index) => (
+            <Page key={index} image={page} pageNumber={index + 1} />
+          ))}
+          
+          <PageCover pos="bottom">
+            <h2 className="text-2xl font-semibold text-muted-foreground">The End</h2>
+          </PageCover>
+        </HTMLFlipBook>
+      </div>
+
+      <div className="flex items-center gap-4">
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={prevPage}
+          disabled={currentPage === 0}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        
+        <span className="text-sm text-muted-foreground min-w-[100px] text-center">
+          Page {currentPage + 1} of {totalPages + 2}
+        </span>
+        
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={nextPage}
+          disabled={currentPage >= totalPages + 1}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
     </div>
   );
