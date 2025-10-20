@@ -40,12 +40,16 @@ const FlipbookView = () => {
       if (error) throw error;
       setFlipbook(flipbookData);
 
-      // Get PDF URL
-      const { data: { publicUrl } } = supabase.storage
+      // Get a signed PDF URL since the bucket is private
+      const { data: signed, error: signedErr } = await supabase.storage
         .from("pdfs")
-        .getPublicUrl(flipbookData.pdf_storage_path);
-      
-      setPdfUrl(publicUrl);
+        .createSignedUrl(flipbookData.pdf_storage_path, 60 * 60); // 1 hour
+
+      if (signedErr || !signed?.signedUrl) {
+        throw signedErr || new Error("Could not create signed URL for PDF");
+      }
+
+      setPdfUrl(signed.signedUrl);
 
       // Check if current user is owner
       const { data: { user } } = await supabase.auth.getUser();
