@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import { Loader2 } from "lucide-react";
 
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Configure PDF.js worker with a more reliable CDN
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
 
 interface FlipbookViewerProps {
   pdfUrl: string;
