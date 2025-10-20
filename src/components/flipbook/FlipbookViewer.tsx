@@ -3,6 +3,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import HTMLFlipBook from "react-pageflip";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 
 // Configure PDF.js worker with a more reliable CDN
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
@@ -10,6 +11,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLi
 interface FlipbookViewerProps {
   pdfUrl: string;
   backgroundColor?: string;
+  backgroundImagePath?: string | null;
+  logoImagePath?: string | null;
 }
 
 const PageCover = ({ children, pos }: { children: React.ReactNode; pos: string }) => (
@@ -39,16 +42,35 @@ const Page = ({ image, pageNumber }: { image: string; pageNumber: number }) => (
   </div>
 );
 
-export const FlipbookViewer = ({ pdfUrl, backgroundColor = "#FFFFFF" }: FlipbookViewerProps) => {
+export const FlipbookViewer = ({ 
+  pdfUrl, 
+  backgroundColor = "#FFFFFF",
+  backgroundImagePath,
+  logoImagePath 
+}: FlipbookViewerProps) => {
   const [loading, setLoading] = useState(true);
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string>("");
+  const [logoImageUrl, setLogoImageUrl] = useState<string>("");
   const bookRef = useRef<any>(null);
 
   useEffect(() => {
     loadPdf();
-  }, [pdfUrl]);
+    loadImages();
+  }, [pdfUrl, backgroundImagePath, logoImagePath]);
+
+  const loadImages = () => {
+    if (backgroundImagePath) {
+      const { data } = supabase.storage.from("backgrounds").getPublicUrl(backgroundImagePath);
+      setBackgroundImageUrl(data.publicUrl);
+    }
+    if (logoImagePath) {
+      const { data } = supabase.storage.from("logos").getPublicUrl(logoImagePath);
+      setLogoImageUrl(data.publicUrl);
+    }
+  };
 
   const loadPdf = async () => {
     try {
@@ -108,8 +130,22 @@ export const FlipbookViewer = ({ pdfUrl, backgroundColor = "#FFFFFF" }: Flipbook
   }
 
   return (
-    <div className="flex flex-col items-center gap-6 p-8" style={{ backgroundColor }}>
-      <div className="relative">
+    <div className="w-full max-w-6xl mx-auto">
+      {logoImageUrl && (
+        <div className="mb-4 text-center">
+          <img src={logoImageUrl} alt="Logo" className="h-16 mx-auto" />
+        </div>
+      )}
+      <div 
+        className="flex flex-col items-center gap-6 p-8" 
+        style={{ 
+          backgroundColor,
+          backgroundImage: backgroundImageUrl ? `url(${backgroundImageUrl})` : undefined,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      >
+        <div className="relative">
         <HTMLFlipBook
           ref={bookRef}
           width={550}
@@ -173,6 +209,7 @@ export const FlipbookViewer = ({ pdfUrl, backgroundColor = "#FFFFFF" }: Flipbook
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
+      </div>
       </div>
     </div>
   );

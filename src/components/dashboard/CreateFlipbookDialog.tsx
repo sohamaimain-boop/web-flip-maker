@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
+import * as pdfjsLib from "pdfjs-dist";
 
 interface CreateFlipbookDialogProps {
   open: boolean;
@@ -45,6 +46,45 @@ export const CreateFlipbookDialog = ({ open, onOpenChange, onSuccess }: CreateFl
 
       if (uploadError) throw uploadError;
 
+      // Generate thumbnail from first page
+      const { data: { publicUrl } } = supabase.storage.from("pdfs").getPublicUrl(filePath);
+      
+      let thumbnailPath = null;
+      try {
+        const response = await fetch(publicUrl);
+        const arrayBuffer = await response.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const page = await pdf.getPage(1);
+        const viewport = page.getViewport({ scale: 0.5 });
+        
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d")!;
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport,
+        } as any).promise;
+
+        // Convert canvas to blob
+        const blob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.8);
+        });
+
+        // Upload thumbnail
+        const thumbnailFileName = `${user.id}/${crypto.randomUUID()}_thumb.jpg`;
+        const { error: thumbError } = await supabase.storage
+          .from("thumbnails")
+          .upload(thumbnailFileName, blob);
+
+        if (!thumbError) {
+          thumbnailPath = thumbnailFileName;
+        }
+      } catch (thumbError) {
+        console.error("Failed to generate thumbnail:", thumbError);
+      }
+
       // Create flipbook record
       const { error: insertError } = await supabase
         .from("flipbooks")
@@ -52,7 +92,8 @@ export const CreateFlipbookDialog = ({ open, onOpenChange, onSuccess }: CreateFl
           user_id: user.id,
           title,
           pdf_storage_path: filePath,
-          status: "ready", // For MVP, we'll mark as ready immediately
+          thumbnail_path: thumbnailPath,
+          status: "ready",
         });
 
       if (insertError) throw insertError;

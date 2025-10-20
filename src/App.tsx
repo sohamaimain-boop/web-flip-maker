@@ -8,6 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import FlipbookView from "./pages/FlipbookView";
 import FlipbookEdit from "./pages/FlipbookEdit";
+import Analytics from "./pages/Analytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/flipbook/:id" element={<FlipbookView />} />
           <Route path="/flipbook/:id/edit" element={<FlipbookEdit />} />
+          <Route path="/flipbook/:id/analytics" element={<Analytics />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

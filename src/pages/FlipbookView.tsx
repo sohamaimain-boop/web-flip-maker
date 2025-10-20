@@ -12,6 +12,8 @@ interface Flipbook {
   title: string;
   pdf_storage_path: string;
   background_color: string;
+  background_image_path: string | null;
+  logo_image_path: string | null;
   view_count: number;
 }
 
@@ -104,7 +106,7 @@ const FlipbookView = () => {
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => navigate(`/flipbook/${id}/analytics`)}>
                   <BarChart className="mr-2 h-4 w-4" />
                   Analytics
                 </Button>
@@ -115,7 +117,12 @@ const FlipbookView = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <FlipbookViewer pdfUrl={pdfUrl} backgroundColor={flipbook.background_color} />
+        <FlipbookViewer 
+          pdfUrl={pdfUrl} 
+          backgroundColor={flipbook.background_color}
+          backgroundImagePath={flipbook.background_image_path}
+          logoImagePath={flipbook.logo_image_path}
+        />
         
         {!isOwner && (
           <div className="mt-8 text-center">

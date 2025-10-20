@@ -24,6 +24,8 @@ interface Flipbook {
   user_id: string;
   title: string;
   background_color: string;
+  background_image_path: string | null;
+  logo_image_path: string | null;
 }
 
 const FlipbookEdit = () => {
@@ -32,6 +34,8 @@ const FlipbookEdit = () => {
   const [flipbook, setFlipbook] = useState<Flipbook | null>(null);
   const [title, setTitle] = useState("");
   const [backgroundColor, setBackgroundColor] = useState("#FFFFFF");
+  const [backgroundImage, setBackgroundImage] = useState<File | null>(null);
+  const [logoImage, setLogoImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -75,16 +79,48 @@ const FlipbookEdit = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      let backgroundImagePath = flipbook?.background_image_path;
+      let logoImagePath = flipbook?.logo_image_path;
+
+      // Upload background image if selected
+      if (backgroundImage) {
+        const fileName = `${user.id}/${Date.now()}_${backgroundImage.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("backgrounds")
+          .upload(fileName, backgroundImage);
+
+        if (uploadError) throw uploadError;
+        backgroundImagePath = fileName;
+      }
+
+      // Upload logo image if selected
+      if (logoImage) {
+        const fileName = `${user.id}/${Date.now()}_${logoImage.name}`;
+        const { error: uploadError } = await supabase.storage
+          .from("logos")
+          .upload(fileName, logoImage);
+
+        if (uploadError) throw uploadError;
+        logoImagePath = fileName;
+      }
+
       const { error } = await supabase
         .from("flipbooks")
         .update({
           title,
           background_color: backgroundColor,
+          background_image_path: backgroundImagePath,
+          logo_image_path: logoImagePath,
         })
         .eq("id", id);
 
       if (error) throw error;
       toast.success("Flipbook updated successfully!");
+      setBackgroundImage(null);
+      setLogoImage(null);
     } catch (error: any) {
       toast.error("Failed to update flipbook");
     } finally {
@@ -162,6 +198,32 @@ const FlipbookEdit = () => {
                   className="flex-1"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="backgroundImage">Background Image (optional)</Label>
+              <Input
+                id="backgroundImage"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setBackgroundImage(e.target.files?.[0] || null)}
+              />
+              {flipbook?.background_image_path && !backgroundImage && (
+                <p className="text-sm text-muted-foreground">Current: {flipbook.background_image_path.split('/').pop()}</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="logoImage">Logo Image (optional)</Label>
+              <Input
+                id="logoImage"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setLogoImage(e.target.files?.[0] || null)}
+              />
+              {flipbook?.logo_image_path && !logoImage && (
+                <p className="text-sm text-muted-foreground">Current: {flipbook.logo_image_path.split('/').pop()}</p>
+              )}
             </div>
 
             <div className="flex gap-2 pt-4">
