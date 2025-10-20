@@ -1,12 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, forwardRef } from "react";
 import * as pdfjsLib from "pdfjs-dist";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
 import HTMLFlipBook from "react-pageflip";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
-// Configure PDF.js worker with a more reliable CDN
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+// Configure PDF.js worker via Vite worker import (reliable)
+pdfjsLib.GlobalWorkerOptions.workerPort = new pdfjsWorker();
 
 interface FlipbookViewerProps {
   pdfUrl: string;
@@ -15,31 +16,35 @@ interface FlipbookViewerProps {
   logoImagePath?: string | null;
 }
 
-const PageCover = ({ children, pos }: { children: React.ReactNode; pos: string }) => (
-  <div className={`page page-cover page-cover-${pos}`} data-density="hard">
-    <div className="page-content">
-      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
-        {children}
+const PageCover = forwardRef<HTMLDivElement, { children: React.ReactNode; pos: string }>(
+  ({ children, pos }, ref) => (
+    <div ref={ref} className={`page page-cover page-cover-${pos}`} data-density="hard">
+      <div className="page-content">
+        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
+          {children}
+        </div>
       </div>
     </div>
-  </div>
+  )
 );
 
-const Page = ({ image, pageNumber }: { image: string; pageNumber: number }) => (
-  <div className="page">
-    <div className="page-content">
-      <div className="w-full h-full bg-white flex items-center justify-center p-4">
-        <img 
-          src={image} 
-          alt={`Page ${pageNumber}`} 
-          className="max-w-full max-h-full object-contain"
-        />
-      </div>
-      <div className="page-footer text-xs text-muted-foreground text-center py-2">
-        {pageNumber}
+const Page = forwardRef<HTMLDivElement, { image: string; pageNumber: number }>(
+  ({ image, pageNumber }, ref) => (
+    <div ref={ref} className="page">
+      <div className="page-content">
+        <div className="w-full h-full bg-white flex items-center justify-center p-4">
+          <img 
+            src={image} 
+            alt={`Page ${pageNumber}`} 
+            className="max-w-full max-h-full object-contain"
+          />
+        </div>
+        <div className="page-footer text-xs text-muted-foreground text-center py-2">
+          {pageNumber}
+        </div>
       </div>
     </div>
-  </div>
+  )
 );
 
 export const FlipbookViewer = ({ 
