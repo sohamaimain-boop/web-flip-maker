@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState, forwardRef } from "react";
 import * as pdfjsLib from "pdfjs-dist";
-import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
 import HTMLFlipBook from "react-pageflip";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
-// Configure PDF.js worker via Vite worker import (reliable)
-pdfjsLib.GlobalWorkerOptions.workerPort = new pdfjsWorker();
+// Configure PDF.js worker from CDN (set in index.html)
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.8.69/pdf.worker.min.mjs`;
 
 interface FlipbookViewerProps {
   pdfUrl: string;
@@ -79,7 +78,10 @@ export const FlipbookViewer = ({
 
   const loadPdf = async () => {
     try {
-      const loadingTask = pdfjsLib.getDocument(pdfUrl);
+      const loadingTask = pdfjsLib.getDocument({
+        url: pdfUrl,
+        useSystemFonts: true,
+      });
       const pdf = await loadingTask.promise;
       const pageImages: string[] = [];
 
@@ -99,7 +101,7 @@ export const FlipbookViewer = ({
           viewport: viewport,
         } as any).promise;
 
-        pageImages.push(canvas.toDataURL());
+        pageImages.push(canvas.toDataURL('image/jpeg', 0.9));
       }
 
       setPages(pageImages);

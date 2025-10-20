@@ -7,10 +7,8 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2, Upload } from "lucide-react";
 import * as pdfjsLib from "pdfjs-dist";
-import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker";
 
-// Configure PDF.js worker for thumbnail generation
-pdfjsLib.GlobalWorkerOptions.workerPort = new pdfjsWorker();
+// PDF.js worker is configured globally in index.html
 
 interface CreateFlipbookDialogProps {
   open: boolean;
