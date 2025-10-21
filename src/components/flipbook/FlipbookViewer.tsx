@@ -184,48 +184,48 @@ export const FlipbookViewer = ({
         }}
       >
         <div className="relative w-full flex justify-center">
-          <HTMLFlipBook
-            ref={bookRef}
-            width={pageWidth}
-            height={pageHeight}
-            size="stretch"
-            minWidth={Math.floor(pageWidth * 0.5)}
-            maxWidth={Math.floor(pageWidth * 2)}
-            minHeight={Math.floor(pageHeight * 0.5)}
-            maxHeight={Math.floor(pageHeight * 2)}
-            maxShadowOpacity={0.5}
-            showCover={true}
-            mobileScrollSupport={true}
-            onFlip={(e: any) => setCurrentPage(e.data)}
-            className="shadow-2xl"
-            style={{}}
-            startPage={0}
-            drawShadow={true}
-            flippingTime={1000}
-            usePortrait={pageHeight > pageWidth}
-            startZIndex={0}
-            autoSize={true}
-            clickEventForward={true}
-            useMouseEvents={true}
-            swipeDistance={30}
-            showPageCorners={true}
-            disableFlipByClick={false}
-          >
-            {/* First page as cover (single page) */}
-            {pages.length > 0 && (
+          {pages.length > 0 && (
+            <HTMLFlipBook
+              ref={bookRef}
+              width={pageWidth}
+              height={pageHeight}
+              size="stretch"
+              minWidth={Math.floor(pageWidth * 0.5)}
+              maxWidth={Math.floor(pageWidth * 2)}
+              minHeight={Math.floor(pageHeight * 0.5)}
+              maxHeight={Math.floor(pageHeight * 2)}
+              maxShadowOpacity={0.5}
+              showCover={true}
+              mobileScrollSupport={true}
+              onFlip={(e: any) => setCurrentPage(e.data)}
+              className="shadow-2xl"
+              style={{}}
+              startPage={0}
+              drawShadow={true}
+              flippingTime={1000}
+              usePortrait={pageHeight > pageWidth}
+              startZIndex={0}
+              autoSize={true}
+              clickEventForward={true}
+              useMouseEvents={true}
+              swipeDistance={30}
+              showPageCorners={true}
+              disableFlipByClick={false}
+            >
+              {/* First page as cover (single page) */}
               <PageCover image={pages[0]} pageNumber={1} />
-            )}
-            
-            {/* Middle pages (double page spread) */}
-            {pages.slice(1, -1).map((page, index) => (
-              <Page key={index + 1} image={page} pageNumber={index + 2} />
-            ))}
-            
-            {/* Last page as cover (single page) */}
-            {pages.length > 1 && (
-              <PageCover image={pages[pages.length - 1]} pageNumber={pages.length} />
-            )}
-          </HTMLFlipBook>
+              
+              {/* Middle pages (double page spread) */}
+              {pages.slice(1, -1).map((page, index) => (
+                <Page key={index + 1} image={page} pageNumber={index + 2} />
+              ))}
+              
+              {/* Last page as cover (single page) */}
+              {pages.length > 1 && (
+                <PageCover image={pages[pages.length - 1]} pageNumber={pages.length} />
+              )}
+            </HTMLFlipBook>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
