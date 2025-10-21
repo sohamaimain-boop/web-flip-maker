@@ -180,17 +180,9 @@ export const FlipbookViewer = ({
           showPageCorners={true}
           disableFlipByClick={false}
         >
-          <PageCover pos="top">
-            <h2 className="text-4xl font-bold text-primary">FlipBook</h2>
-          </PageCover>
-          
           {pages.map((page, index) => (
             <Page key={index} image={page} pageNumber={index + 1} />
           ))}
-          
-          <PageCover pos="bottom">
-            <h2 className="text-2xl font-semibold text-muted-foreground">The End</h2>
-          </PageCover>
         </HTMLFlipBook>
       </div>
 
@@ -205,14 +197,14 @@ export const FlipbookViewer = ({
         </Button>
         
         <span className="text-sm text-muted-foreground min-w-[100px] text-center">
-          Page {currentPage + 1} of {totalPages + 2}
+          Page {currentPage + 1} of {totalPages}
         </span>
         
         <Button
           variant="outline"
           size="icon"
           onClick={nextPage}
-          disabled={currentPage >= totalPages + 1}
+          disabled={currentPage >= totalPages - 1}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
