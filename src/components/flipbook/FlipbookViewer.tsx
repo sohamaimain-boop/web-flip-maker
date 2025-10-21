@@ -15,12 +15,16 @@ interface FlipbookViewerProps {
   logoImagePath?: string | null;
 }
 
-const PageCover = forwardRef<HTMLDivElement, { children: React.ReactNode; pos: string }>(
-  ({ children, pos }, ref) => (
-    <div ref={ref} className={`page page-cover page-cover-${pos}`} data-density="hard">
+const PageCover = forwardRef<HTMLDivElement, { image: string; pageNumber: number }>(
+  ({ image, pageNumber }, ref) => (
+    <div ref={ref} className="page page-cover" data-density="hard">
       <div className="page-content">
-        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/10 to-accent/10">
-          {children}
+        <div className="w-full h-full bg-white flex items-center justify-center p-4">
+          <img 
+            src={image} 
+            alt={`Page ${pageNumber}`} 
+            className="max-w-full max-h-full object-contain"
+          />
         </div>
       </div>
     </div>
@@ -58,6 +62,8 @@ export const FlipbookViewer = ({
   const [totalPages, setTotalPages] = useState(0);
   const [backgroundImageUrl, setBackgroundImageUrl] = useState<string>("");
   const [logoImageUrl, setLogoImageUrl] = useState<string>("");
+  const [pageWidth, setPageWidth] = useState(550);
+  const [pageHeight, setPageHeight] = useState(733);
   const bookRef = useRef<any>(null);
 
   useEffect(() => {
@@ -85,6 +91,31 @@ export const FlipbookViewer = ({
       const pdf = await loadingTask.promise;
       const pageImages: string[] = [];
 
+      // Get first page to determine dimensions
+      const firstPage = await pdf.getPage(1);
+      const firstViewport = firstPage.getViewport({ scale: 1 });
+      const pdfWidth = firstViewport.width;
+      const pdfHeight = firstViewport.height;
+      
+      // Calculate aspect ratio and set appropriate dimensions
+      const aspectRatio = pdfWidth / pdfHeight;
+      let displayWidth: number;
+      let displayHeight: number;
+      
+      if (aspectRatio > 1) {
+        // Landscape orientation
+        displayWidth = 800;
+        displayHeight = Math.round(displayWidth / aspectRatio);
+      } else {
+        // Portrait orientation
+        displayHeight = 733;
+        displayWidth = Math.round(displayHeight * aspectRatio);
+      }
+      
+      setPageWidth(displayWidth);
+      setPageHeight(displayHeight);
+
+      // Render all pages
       for (let i = 1; i <= pdf.numPages; i++) {
         const page = await pdf.getPage(i);
         const viewport = page.getViewport({ scale: 2 });
@@ -152,63 +183,74 @@ export const FlipbookViewer = ({
           backgroundPosition: 'center'
         }}
       >
-        <div className="relative">
-        <HTMLFlipBook
-          ref={bookRef}
-          width={550}
-          height={733}
-          size="stretch"
-          minWidth={315}
-          maxWidth={1000}
-          minHeight={400}
-          maxHeight={1533}
-          maxShadowOpacity={0.5}
-          showCover={true}
-          mobileScrollSupport={true}
-          onFlip={(e: any) => setCurrentPage(e.data)}
-          className="shadow-2xl"
-          style={{}}
-          startPage={0}
-          drawShadow={true}
-          flippingTime={1000}
-          usePortrait={true}
-          startZIndex={0}
-          autoSize={true}
-          clickEventForward={true}
-          useMouseEvents={true}
-          swipeDistance={30}
-          showPageCorners={true}
-          disableFlipByClick={false}
-        >
-          {pages.map((page, index) => (
-            <Page key={index} image={page} pageNumber={index + 1} />
-          ))}
-        </HTMLFlipBook>
-      </div>
+        <div className="relative w-full flex justify-center">
+          <HTMLFlipBook
+            ref={bookRef}
+            width={pageWidth}
+            height={pageHeight}
+            size="stretch"
+            minWidth={Math.floor(pageWidth * 0.5)}
+            maxWidth={Math.floor(pageWidth * 2)}
+            minHeight={Math.floor(pageHeight * 0.5)}
+            maxHeight={Math.floor(pageHeight * 2)}
+            maxShadowOpacity={0.5}
+            showCover={true}
+            mobileScrollSupport={true}
+            onFlip={(e: any) => setCurrentPage(e.data)}
+            className="shadow-2xl"
+            style={{}}
+            startPage={0}
+            drawShadow={true}
+            flippingTime={1000}
+            usePortrait={pageHeight > pageWidth}
+            startZIndex={0}
+            autoSize={true}
+            clickEventForward={true}
+            useMouseEvents={true}
+            swipeDistance={30}
+            showPageCorners={true}
+            disableFlipByClick={false}
+          >
+            {/* First page as cover (single page) */}
+            {pages.length > 0 && (
+              <PageCover image={pages[0]} pageNumber={1} />
+            )}
+            
+            {/* Middle pages (double page spread) */}
+            {pages.slice(1, -1).map((page, index) => (
+              <Page key={index + 1} image={page} pageNumber={index + 2} />
+            ))}
+            
+            {/* Last page as cover (single page) */}
+            {pages.length > 1 && (
+              <PageCover image={pages[pages.length - 1]} pageNumber={pages.length} />
+            )}
+          </HTMLFlipBook>
+        </div>
 
-      <div className="flex items-center gap-4">
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={prevPage}
-          disabled={currentPage === 0}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        
-        <span className="text-sm text-muted-foreground min-w-[100px] text-center">
-          Page {currentPage + 1} of {totalPages}
-        </span>
-        
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={nextPage}
-          disabled={currentPage >= totalPages - 1}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={prevPage}
+            disabled={currentPage === 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
+          <span className="text-sm text-muted-foreground min-w-[100px] text-center">
+            Page {currentPage + 1} of {totalPages}
+          </span>
+          
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={nextPage}
+            disabled={currentPage >= totalPages - 1}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
