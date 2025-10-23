@@ -60,6 +60,51 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Payments (Razorpay) setup
+
+This project integrates Razorpay Checkout via Supabase Edge Functions to offer Free and Pro pricing tiers.
+
+Never commit live API keys to source control. Configure them as environment secrets for your Supabase Edge Functions:
+
+1) Collect the following values:
+
+- RAZORPAY_KEY_ID
+- RAZORPAY_KEY_SECRET
+- SUPABASE_URL (your project URL)
+- SUPABASE_SERVICE_ROLE_KEY (service role key)
+
+2) Set them as Supabase Function secrets:
+
+```sh
+# From your project folder with the Supabase CLI installed
+supabase functions secrets set RAZORPAY_KEY_ID=... RAZORPAY_KEY_SECRET=...
+supabase functions secrets set SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+3) Deploy the functions (or run locally):
+
+```sh
+# Deploy both functions
+supabase functions deploy create-razorpay-order
+supabase functions deploy verify-razorpay-payment
+
+# Or run locally for testing
+supabase functions serve --env-file supabase/.env
+```
+
+Client flow:
+
+- The Pricing page calls `create-razorpay-order` to create an order and receive `order_id` and your publishable `key_id`.
+- Razorpay Checkout opens in the browser and completes payment.
+- The client then calls `verify-razorpay-payment` to verify the signature server-side, activate the subscription, and set the user's role to `pro`.
+
+Free vs Pro limits:
+
+- Free: up to 3 flipbooks, 10MB per PDF.
+- Pro: Unlimited flipbooks, 50MB per PDF.
+
+Note: If you need to change pricing or limits, update `src/pages/Pricing.tsx` and `src/components/dashboard/CreateFlipbookDialog.tsx` accordingly.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/8a228405-44d1-415b-934a-f99c0c77e486) and click on Share -> Publish.

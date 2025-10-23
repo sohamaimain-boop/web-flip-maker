@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -20,15 +20,48 @@ export const CreateFlipbookDialog = ({ open, onOpenChange, onSuccess }: CreateFl
   const [title, setTitle] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [userRole, setUserRole] = useState<'free' | 'pro'>('free');
+  const [flipbookCount, setFlipbookCount] = useState<number>(0);
+
+  // Load user role and flipbook count when dialog opens
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get role via RPC which defaults to 'free' if none exists
+      const { data: roleValue } = await supabase.rpc('get_user_role', { _user_id: user.id });
+      if (roleValue) {
+        setUserRole(roleValue as 'free' | 'pro');
+      }
+
+      // Get flipbook count
+      const { count } = await supabase
+        .from('flipbooks')
+        .select('id', { count: 'exact', head: true });
+
+      setFlipbookCount(count || 0);
+    };
+
+    if (open) {
+      init();
+    }
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file || !title) return;
 
-    // Check file size (10MB limit for free users)
-    const maxSize = 10 * 1024 * 1024;
+    // Enforce Free vs Pro limits
+    const fileLimitMB = userRole === 'pro' ? 50 : 10;
+    const maxSize = fileLimitMB * 1024 * 1024;
     if (file.size > maxSize) {
-      toast.error("File size must be less than 10MB");
+      toast.error(`File size must be less than ${fileLimitMB}MB${userRole === 'pro' ? '' : ' (upgrade to Pro for 50MB)'}`);
+      return;
+    }
+
+    if (userRole === 'free' && flipbookCount >= 3) {
+      toast.error('Free plan limit reached (3 flipbooks). Upgrade to Pro for unlimited flipbooks.');
       return;
     }
 
@@ -64,9 +97,13 @@ export const CreateFlipbookDialog = ({ open, onOpenChange, onSuccess }: CreateFl
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
+        // pdf.js types are not bundled; the cast is limited to the render params
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         await page.render({
-          canvasContext: context,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          canvasContext: context as any,
           viewport: viewport,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any).promise;
 
         // Convert canvas to blob
@@ -104,8 +141,13 @@ export const CreateFlipbookDialog = ({ open, onOpenChange, onSuccess }: CreateFl
       setTitle("");
       setFile(null);
       onSuccess();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to create flipbook");
+    } catch (error: unknown) {
+      const message = typeof error === 'string'
+        ? error
+        : (typeof error === 'object' && error && 'message' in error && typeof (error as { message: unknown }).message === 'string')
+          ? (error as { message: string }).message
+          : 'Failed to create flipbook';
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -132,7 +174,7 @@ export const CreateFlipbookDialog = ({ open, onOpenChange, onSuccess }: CreateFl
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="pdf">PDF File (Max 10MB)</Label>
+            <Label htmlFor="pdf">PDF File (Max {userRole === 'pro' ? '50MB' : '10MB'})</Label>
             <div className="flex items-center gap-2">
               <Input
                 id="pdf"
@@ -147,6 +189,11 @@ export const CreateFlipbookDialog = ({ open, onOpenChange, onSuccess }: CreateFl
             {file && (
               <p className="text-sm text-muted-foreground">
                 {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+              </p>
+            )}
+            {userRole === 'free' && (
+              <p className="text-xs text-muted-foreground">
+                Free plan: up to 3 flipbooks and 10MB per PDF. <a className="underline" href="/pricing">Upgrade to Pro</a> for unlimited flipbooks and 50MB uploads.
               </p>
             )}
           </div>

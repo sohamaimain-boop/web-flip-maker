@@ -5,10 +5,40 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+const errorMessage = (err: unknown, fallback: string) => {
+  if (typeof err === 'string') return err;
+  if (
+    err &&
+    typeof err === 'object' &&
+    'message' in err &&
+    typeof (err as { message: unknown }).message === 'string'
+  ) {
+    return (err as { message: string }).message;
+  }
+  return fallback;
+};
+
+type RazorpayPaymentResponse = {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+};
+
+type RazorpayOptions = {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description: string;
+  order_id: string;
+  handler: (response: RazorpayPaymentResponse) => void;
+  prefill?: { email?: string };
+  theme?: { color?: string };
+};
 
 declare global {
   interface Window {
-    Razorpay: any;
+    Razorpay: new (options: RazorpayOptions) => { open: () => void };
   }
 }
 
@@ -36,20 +66,16 @@ const Pricing = () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       setUserId(user.id);
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .single();
-      
-      if (roleData) {
-        setUserRole(roleData.role);
-      }
+      // Prefer server function to safely return 'free' when no row exists
+      const { data: roleValue } = await supabase.rpc('get_user_role', { _user_id: user.id });
+      if (roleValue) setUserRole(roleValue as string);
     }
   };
 
   const handleUpgrade = async () => {
-    if (!userId) {
+    // Ensure we have an active session and token
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session || !session.access_token) {
       toast.error("Please sign in to upgrade");
       navigate("/auth");
       return;
@@ -64,24 +90,23 @@ const Pricing = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("create-razorpay-order", {
-        body: { amount: 999, currency: "INR", plan_type: "pro" }
+        body: { amount: 999, currency: "INR", plan_type: "pro" },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (error) throw error;
 
-      const options = {
+      const options: RazorpayOptions = {
         key: data.razorpay_key_id,
         amount: data.amount,
         currency: data.currency,
         name: "FlipFlow",
         description: "Pro Plan - Unlimited Flipbooks",
         order_id: data.order_id,
-        handler: async function (response: any) {
+        handler: async function (response: RazorpayPaymentResponse) {
           await verifyPayment(response);
         },
-        prefill: {
-          email: (await supabase.auth.getUser()).data.user?.email || "",
-        },
+        prefill: { email: session.user?.email || "" },
         theme: {
           color: "#8B5CF6",
         },
@@ -89,29 +114,37 @@ const Pricing = () => {
 
       const rzp = new window.Razorpay(options);
       rzp.open();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to initiate payment");
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, 'Failed to initiate payment'));
     } finally {
       setLoading(false);
     }
   };
 
-  const verifyPayment = async (response: any) => {
+  const verifyPayment = async (response: RazorpayPaymentResponse) => {
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || !session.access_token) {
+        toast.error("Session expired. Please sign in again.");
+        navigate("/auth");
+        return;
+      }
+
       const { error } = await supabase.functions.invoke("verify-razorpay-payment", {
         body: {
           razorpay_payment_id: response.razorpay_payment_id,
           razorpay_order_id: response.razorpay_order_id,
           razorpay_signature: response.razorpay_signature,
-        }
+        },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (error) throw error;
 
       toast.success("Payment successful! You are now a Pro user");
       setTimeout(() => navigate("/dashboard"), 2000);
-    } catch (error: any) {
-      toast.error(error.message || "Payment verification failed");
+    } catch (error: unknown) {
+      toast.error(errorMessage(error, 'Payment verification failed'));
     }
   };
 
@@ -124,8 +157,10 @@ const Pricing = () => {
       features: [
         "3 Flipbooks",
         "10MB Max File Size",
+        "Client-side PDF processing",
         "Basic Background Color",
         "Total Views Analytics",
+        "Public sharing URL",
         '"Made with FlipFlow" Branding',
       ],
       cta: "Current Plan",
@@ -142,8 +177,11 @@ const Pricing = () => {
         "50MB Max File Size",
         "Remove FlipFlow Branding",
         "Upload Custom Logo",
-        "Background Images",
-        "Advanced Analytics",
+        "Background Images & advanced styling",
+        "Advanced, page-level analytics",
+        "Public URL + Embed via iframe",
+        "Offline download (self-contained HTML)",
+        "Server-side PDF processing (coming soon)",
       ],
       cta: userRole === "pro" ? "Current Plan" : "Upgrade to Pro",
       disabled: userRole === "pro",

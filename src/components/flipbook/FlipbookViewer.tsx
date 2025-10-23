@@ -1,12 +1,38 @@
-import { useEffect, useRef, useState, forwardRef } from "react";
+
+import { useEffect, useRef, useState, forwardRef, useCallback } from "react";
 import * as pdfjsLib from "pdfjs-dist";
+// Import the pdf.js worker so Vite bundles it locally instead of using a CDN
+// Vite will treat the import as a web worker and return a Worker constructor
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - Vite provides types for ?worker via vite/client
+import PdfWorker from "pdfjs-dist/build/pdf.worker.mjs?worker";
 import HTMLFlipBook from "react-pageflip";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 
-// Configure PDF.js worker to match the installed version (5.4.296)
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.296/pdf.worker.min.mjs`;
+// Configure PDF.js to use the locally bundled worker (avoids cross-origin/CDN issues)
+if (typeof window !== "undefined" && "Worker" in window) {
+  try {
+    // Create a dedicated worker instance for pdf.js
+    const worker = new (PdfWorker as unknown as { new (): Worker })();
+    // Use the workerPort API introduced in pdf.js v5
+    // This takes precedence over workerSrc
+    // https://github.com/mozilla/pdf.js/wiki/Frequently-Asked-Questions#pdfjs-worker
+    // Cast to a narrow shape to avoid using 'any'
+    const lib = pdfjsLib as unknown as {
+      GlobalWorkerOptions: { workerPort: Worker | null; workerSrc?: string };
+    };
+    lib.GlobalWorkerOptions.workerPort = worker;
+  } catch {
+    // Fallback: disable worker to avoid fake-worker errors (slower rendering)
+    const lib = pdfjsLib as unknown as {
+      GlobalWorkerOptions: { workerPort: Worker | null; workerSrc?: string };
+    };
+    lib.GlobalWorkerOptions.workerPort = null;
+    lib.GlobalWorkerOptions.workerSrc = "";
+  }
+}
 
 interface FlipbookViewerProps {
   pdfUrl: string;
@@ -64,25 +90,28 @@ export const FlipbookViewer = ({
   const [logoImageUrl, setLogoImageUrl] = useState<string>("");
   const [pageWidth, setPageWidth] = useState(550);
   const [pageHeight, setPageHeight] = useState(733);
-  const bookRef = useRef<any>(null);
+  type PageFlipController = { flipNext: () => void; flipPrev: () => void };
+  type FlipBookHandle = { pageFlip: () => PageFlipController };
+  const bookRef = useRef<FlipBookHandle | null>(null);
 
-  useEffect(() => {
-    loadPdf();
-    loadImages();
-  }, [pdfUrl, backgroundImagePath, logoImagePath]);
-
-  const loadImages = () => {
+  const loadImages = useCallback(() => {
     if (backgroundImagePath) {
-      const { data } = supabase.storage.from("backgrounds").getPublicUrl(backgroundImagePath);
+      const { data } = supabase.storage
+        .from("backgrounds")
+        .getPublicUrl(backgroundImagePath);
       setBackgroundImageUrl(data.publicUrl);
+    } else {
+      setBackgroundImageUrl("");
     }
     if (logoImagePath) {
       const { data } = supabase.storage.from("logos").getPublicUrl(logoImagePath);
       setLogoImageUrl(data.publicUrl);
+    } else {
+      setLogoImageUrl("");
     }
-  };
+  }, [backgroundImagePath, logoImagePath]);
 
-  const loadPdf = async () => {
+  const loadPdf = useCallback(async () => {
     try {
       const loadingTask = pdfjsLib.getDocument({
         url: pdfUrl,
@@ -127,10 +156,11 @@ export const FlipbookViewer = ({
         canvas.height = viewport.height;
         canvas.width = viewport.width;
 
-        await page.render({
-          canvasContext: context,
-          viewport: viewport,
-        } as any).promise;
+        const renderTask = page.render({
+          canvas,
+          viewport,
+        });
+        await renderTask.promise;
 
         pageImages.push(canvas.toDataURL('image/jpeg', 0.9));
       }
@@ -142,7 +172,12 @@ export const FlipbookViewer = ({
       console.error("Error loading PDF:", error);
       setLoading(false);
     }
-  };
+  }, [pdfUrl]);
+
+  useEffect(() => {
+    void loadPdf();
+    loadImages();
+  }, [loadPdf, loadImages]);
 
   const nextPage = () => {
     if (bookRef.current) {
@@ -197,7 +232,7 @@ export const FlipbookViewer = ({
               maxShadowOpacity={0.5}
               showCover={true}
               mobileScrollSupport={true}
-              onFlip={(e: any) => setCurrentPage(e.data)}
+              onFlip={(e: { data: number }) => setCurrentPage(e.data)}
               className="shadow-2xl"
               style={{}}
               startPage={0}

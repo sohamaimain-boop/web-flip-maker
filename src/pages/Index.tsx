@@ -23,6 +23,9 @@ const Index = () => {
             FlipFlow
           </h1>
           <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => navigate("/pricing")}>
+              Pricing
+            </Button>
             <Button variant="ghost" onClick={() => navigate("/auth")}>
               Sign In
             </Button>
